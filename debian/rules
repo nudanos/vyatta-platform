@@ -12,4 +12,6 @@ override_dh_installinit:
 # Override action to avoid starting vyatta-sfpd.socket, which doesn't
 # cope well with vyatta-sfpd.service also running
 override_dh_installsystemd:
-	dh_installsystemd
+	dh_installsystemd -p vyatta-sfpd vyatta-sfpd.service
+	dh_installsystemd -p vyatta-sfpd --no-start vyatta-sfpd.socket
+	dh_installsystemd -p vyatta-platform-util --no-start vyatta-platform-name.service
