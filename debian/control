@@ -1,13 +1,16 @@
 Source: vyatta-platform
-Section: contrib/net
+Section: net
 Priority: optional
-Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
-Build-Depends: debhelper (>=9.20160709),
-               dh-python,
-               python3,
-               python3-all,
-Standards-Version: 3.9.6
+Maintainer: NuDanOS Maintainers <jon@fernandez.tech>
+Build-Depends: debhelper-compat (= 13),
+ dh-python,
+ python3,
+ python3-all
+Standards-Version: 4.7.2
 X-Python3-Version: >= 3.3
+Rules-Requires-Root: no
+Vcs-Git: https://github.com/nudanos/vyatta-platform.git
+Vcs-Browser: https://github.com/nudanos/vyatta-platform
 
 Package: python3-vyatta-platform-utils
 Architecture: all
@@ -33,7 +36,7 @@ Description: Vyatta SFP management and notification libraries
 
 Package: vyatta-sfpd
 Architecture: all
-Depends:
+Depends: 
         ${python3:Depends},
         ${misc:Depends},
         python3-vyatta-platform-sfp,
@@ -54,7 +57,7 @@ Description: Vyatta platform detection python3 library
 
 Package: vyatta-platform-util
 Architecture: all
-Depends:
+Depends: 
  ${misc:Depends},
  python3-vyatta-platform-detect,
  python3,

@@ -1,3 +1,9 @@
+vyatta-platform (2.20) trixie; urgency=medium
+
+  * Port to Debian 13 (trixie): debhelper-compat 13, Standards-Version 4.7.2, Rules-Requires-Root, NuDanOS Vcs.
+
+ -- NuDanOS Maintainers <jon@fernandez.tech>  Wed, 30 Sep 2026 19:41:21 -0700
+
 vyatta-platform (2.19) unstable; urgency=medium
 
   [ ck407g ]
