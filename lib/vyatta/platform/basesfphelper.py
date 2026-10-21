@@ -43,6 +43,9 @@ class BaseSfpHelper(ABC):
     PHY_PROBE_TRIES = 1
     PHY_PROBE_RETRY_TIME = 0.075  # 75 msec
 
+    # The SFP daemon the helper reports to; concrete helpers set it
+    sfpd = None
+
     @abstractmethod
     def get_bus(self, porttype, port):
         """
@@ -52,7 +55,6 @@ class BaseSfpHelper(ABC):
         methods.  The bus can be then be used to interact with any PHY
         that is present
         """
-        pass
 
     @abstractmethod
     def set_sfp_state(self, portname, enabled):
@@ -64,7 +66,6 @@ class BaseSfpHelper(ABC):
         are not active and any device at the other end of the link
         doesn't see the link as up.
         """
-        pass
 
     @abstractmethod
     def main_loop(self, file_evmask_tuple_list):
@@ -75,7 +76,6 @@ class BaseSfpHelper(ABC):
         on_sfp_presence_change() or on_file_event() on it as SFP
         presence events, or other file events occur respectively.
         """
-        pass
 
     @abstractmethod
     def read_eeprom(self, porttype, port, offset=None, length=None):
@@ -86,7 +86,6 @@ class BaseSfpHelper(ABC):
         length isn't specified then it is assumed that all pages of
         the EEPROM should be read.
         """
-        pass
 
     @abstractmethod
     def query_eeprom(self, porttype, port):
@@ -97,8 +96,8 @@ class BaseSfpHelper(ABC):
         consist of strings A0 and A2. For QSFP, this is a list of
         integers that may range from 0x00 to 0xff.
         """
-        pass
 
+    # pylint: disable-next=R0913,R0917 ; reason: helper interface
     def process_sfpinsertedremoved(self, portname, porttype, port, inserted,
                                    extra_state):
         """
@@ -110,7 +109,7 @@ class BaseSfpHelper(ABC):
     def set_sgmii_enabled(self, porttype, port):
         is_sgmii = False
         try:
-            for i in range(0, self.PHY_PROBE_TRIES):
+            for _ in range(0, self.PHY_PROBE_TRIES):
                 with self.get_bus(porttype, port) as bus:
                     try:
                         phy = PhyBus.create_phy(bus)
@@ -135,9 +134,9 @@ class BaseSfpHelper(ABC):
                 try:
                     phy = PhyBus.create_phy(bus)
                     status = phy.get_linkstatus(bus)
-                except PhyException as e:
+                except PhyException:
                     pass
-        except SfpHelperException as e:
+        except SfpHelperException:
             pass
         return status
 
@@ -150,9 +149,9 @@ class BaseSfpHelper(ABC):
                 try:
                     phy = PhyBus.create_phy(bus)
                     phy.set_speed_duplex(bus, speed, duplex)
-                except PhyException as e:
+                except PhyException:
                     pass
-        except SfpHelperException as e:
+        except SfpHelperException:
             pass
 
     def set_phy_autoneg(self, porttype, port):
@@ -164,8 +163,13 @@ class BaseSfpHelper(ABC):
                 try:
                     phy = PhyBus.create_phy(bus)
 
-                    phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True})
-                except PhyException as e:
+                    phy.set_autoneg_caps(bus, {'1000full': True,
+                                               '1000half': True,
+                                               '100full': True,
+                                               '100half': True,
+                                               '10full': True,
+                                               '10half': True})
+                except PhyException:
                     pass
-        except SfpHelperException as e:
+        except SfpHelperException:
             pass

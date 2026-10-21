@@ -17,7 +17,7 @@ class PlatformError(Exception):
     pass
 
 
-class DefaultPlatform(object):
+class DefaultPlatform:
     def is_switch(self):
         """
         Determine if this platform is a switch. If not, then it's a router
@@ -43,7 +43,7 @@ class DefaultPlatform(object):
         """
         Configure the dataplane for the platform
         """
-        return
+        del conf_file    # the default platform has nothing to configure
 
     def __str__(self):
         return self.get_platform_string()
@@ -69,11 +69,13 @@ def gen_platform_type_modules():
 
 def detect():
     """ Detect platform and return the platform object """
-    sysmfr = subprocess.run(["/usr/sbin/dmidecode", "-s", "system-manufacturer"],
+    sysmfr = subprocess.run(["/usr/sbin/dmidecode", "-s",
+                             "system-manufacturer"],
                             check=True, stdout=subprocess.PIPE,
                             universal_newlines=True).stdout
     sysmfr = sysmfr.rstrip('\n')
-    sysname = subprocess.run(["/usr/sbin/dmidecode", "-s", "system-product-name"],
+    sysname = subprocess.run(["/usr/sbin/dmidecode", "-s",
+                              "system-product-name"],
                              check=True, stdout=subprocess.PIPE,
                              universal_newlines=True).stdout
     sysname = sysname.rstrip('\n')
@@ -85,13 +87,14 @@ def detect():
                              check=True, stdout=subprocess.PIPE,
                              universal_newlines=True).stdout
     biosver = biosver.rstrip('\n')
-    LOG.debug('sysmfr = {}, sysname = {}, biosvr = {}'.format(
-        sysmfr, sysname, biosver))
+    LOG.debug('sysmfr = %s, sysname = %s, biosvr = %s',
+              sysmfr, sysname, biosver)
 
     for mod_name in gen_platform_type_modules():
         plat_mod = importlib.import_module(mod_name)
         try:
-            platform = plat_mod.detect(sysmfr=sysmfr, sysname=sysname, biosver=biosver)
+            platform = plat_mod.detect(sysmfr=sysmfr, sysname=sysname,
+                                       biosver=biosver)
         except PlatformError as e:
             LOG.debug('not detected as ' + mod_name + ' due to ' + repr(e))
             continue

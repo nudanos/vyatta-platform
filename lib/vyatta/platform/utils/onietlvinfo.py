@@ -4,11 +4,10 @@
 # All rights reserved.
 """ Decode the ONIE TLV data blob """
 
-import sys
 
-
+# See
+# https://opencomputeproject.github.io/onie/design-spec/hw_requirements.html
 class ONIETLVInfo:
-    # See https://opencomputeproject.github.io/onie/design-spec/hw_requirements.html
 
     TLVINFO_HEADER = 'TlvInfo'
     TLVINFO_INVALID = 0x0
@@ -32,14 +31,51 @@ class ONIETLVInfo:
     TLVINFO_VENDOR_EXTENSION = 0xFD
     TLVINFO_CRC_32 = 0xFE
 
+    # TLV types whose value is a string, by their key in the decoded data
+    STRING_FIELDS = {
+        TLVINFO_PRODUCT_NAME: 'product_name',
+        TLVINFO_PART_NUMBER: 'part_number',
+        TLVINFO_SERIAL_NUMBER: 'serial_number',
+        TLVINFO_MANUFACTURE_DATE: 'manufacture_date',
+        TLVINFO_LABEL_REVISION: 'label_revision',
+        TLVINFO_PLATFORM_NAME: 'platform_name',
+        TLVINFO_ONIE_VERSION: 'onie_version',
+        TLVINFO_MANUFACTURER: 'manufacturer',
+        TLVINFO_COUNTRY_CODE: 'country_code',
+        TLVINFO_VENDOR: 'vendor',
+        TLVINFO_DIAG_VERSION: 'diag_version',
+        TLVINFO_SERVICE_TAG: 'service_tag',
+    }
+
     def decode_variable(self, data, start, length):
-        return ''.join('{:c}'.format(data[b]) for b in range(start, start + length))
+        return ''.join(f'{data[b]:c}' for b in range(start, start + length))
 
     def decode_int(self, data, start):
-        return int(data[start] << 24 | data[start + 1] << 16 | data[start + 2] << 8 | data[start + 3])
+        return int(data[start] << 24 | data[start + 1] << 16
+                   | data[start + 2] << 8 | data[start + 3])
 
     def decode_short(self, data, start):
         return int(data[start] << 8 | data[start + 1])
+
+    def decode_other(self, tlv_type, data, start, length):
+        """
+        The key and value of a TLV whose value is not a string, or None
+        for a type this does not decode.
+        """
+        if tlv_type == self.TLVINFO_MAC_1_BASE:
+            return 'base_mac', ':'.join(f'{data[b]:02x}'
+                                        for b in range(start, start + length))
+        if tlv_type == self.TLVINFO_DEVICE_VERSION:
+            return 'device_version', int(data[start])
+        if tlv_type == self.TLVINFO_NUM_MACS:
+            return 'num_macs', self.decode_short(data, start)
+        if tlv_type == self.TLVINFO_VENDOR_EXTENSION:
+            return 'vendor_extension', (
+                self.decode_int(data, start),
+                self.decode_variable(data, start + 4, length - 4))
+        if tlv_type == self.TLVINFO_CRC_32:
+            return 'crc-32', self.decode_int(data, start)
+        return None
 
     def decode(self, eeprom_data):
         header = self.decode_variable(eeprom_data, 0, 7)
@@ -48,7 +84,7 @@ class ONIETLVInfo:
 
         total_len = eeprom_data[9] * 256 + eeprom_data[10]
 
-        decoded_data = dict()
+        decoded_data = {}
 
         i = self.TLVINFO_TLV_FIELDS
         while i < total_len:
@@ -60,58 +96,14 @@ class ONIETLVInfo:
                 # This shouldn't happen. If it does, something is very wrong.
                 raise ValueError('The CPU EEPROM is corrupted or empty.')
 
-            elif tlv_type == self.TLVINFO_PRODUCT_NAME:
-                decoded_data['product_name'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_PART_NUMBER:
-                decoded_data['part_number'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_SERIAL_NUMBER:
-                decoded_data['serial_number'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_MAC_1_BASE:
-                base_mac = ':'.join('{:02x}'.format(eeprom_data[b]) for b in range(tlv_start, tlv_start + tlv_len))
-                decoded_data['base_mac'] = '{}'.format(base_mac)
-
-            elif tlv_type == self.TLVINFO_MANUFACTURE_DATE:
-                decoded_data['manufacture_date'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_DEVICE_VERSION:
-                decoded_data['device_version'] = int(eeprom_data[tlv_start])
-
-            elif tlv_type == self.TLVINFO_LABEL_REVISION:
-                decoded_data['label_revision'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_PLATFORM_NAME:
-                decoded_data['platform_name'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_ONIE_VERSION:
-                decoded_data['onie_version'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_NUM_MACS:
-                decoded_data['num_macs'] = self.decode_short(eeprom_data, tlv_start)
-
-            elif tlv_type == self.TLVINFO_MANUFACTURER:
-                decoded_data['manufacturer'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_COUNTRY_CODE:
-                decoded_data['country_code'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_VENDOR:
-                decoded_data['vendor'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_DIAG_VERSION:
-                decoded_data['diag_version'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_SERVICE_TAG:
-                decoded_data['service_tag'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
-
-            elif tlv_type == self.TLVINFO_VENDOR_EXTENSION:
-                iana_num = self.decode_int(eeprom_data, tlv_start)
-                decoded_data['vendor_extension'] = (iana_num, self.decode_variable(eeprom_data, tlv_start + 4, tlv_len - 4))
-
-            elif tlv_type == self.TLVINFO_CRC_32:
-                decoded_data['crc-32'] = self.decode_int(eeprom_data, tlv_start)
+            if tlv_type in self.STRING_FIELDS:
+                decoded_data[self.STRING_FIELDS[tlv_type]] = \
+                    self.decode_variable(eeprom_data, tlv_start, tlv_len)
+            else:
+                field = self.decode_other(tlv_type, eeprom_data, tlv_start,
+                                          tlv_len)
+                if field is not None:
+                    decoded_data[field[0]] = field[1]
 
             i += tlv_len + self.TLVINFO_TLV_HEADER
 

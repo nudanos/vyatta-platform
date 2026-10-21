@@ -15,3 +15,9 @@ override_dh_installsystemd:
 	dh_installsystemd -p vyatta-sfpd vyatta-sfpd.service
 	dh_installsystemd -p vyatta-sfpd --no-start vyatta-sfpd.socket
 	dh_installsystemd -p vyatta-platform-util --no-start vyatta-platform-name.service
+
+# NuDanOS: unit tests
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	PYTHONPATH=lib python3 -m unittest discover -s tests -v
+endif

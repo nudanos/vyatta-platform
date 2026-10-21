@@ -28,7 +28,6 @@ class BasePhy(ABC):
         Is this PHY SGMII capable? If not, then it will be assumed
         that the PHY supports 1000BASE-X AN only over SERDES.
         """
-        pass
 
     @abstractmethod
     def enable_sgmii(self, bus):
@@ -36,7 +35,6 @@ class BasePhy(ABC):
         Enable SGMII mode on the PHY. If the PHY uses SGMII by default
         then this can be a no-op.
         """
-        pass
 
     @abstractmethod
     def set_autoneg_caps(self, bus, caps):
@@ -53,7 +51,6 @@ class BasePhy(ABC):
          - 10half
         Capabilities not supported should be ignored.
         """
-        pass
 
     @abstractmethod
     def get_linkpartner_caps(self, bus):
@@ -70,7 +67,6 @@ class BasePhy(ABC):
          - 10full
          - 10half
         """
-        pass
 
     @abstractmethod
     def get_linkstatus(self, bus):
@@ -83,11 +79,9 @@ class BasePhy(ABC):
         "unknown" (if auto-negotiated and auto-negotiate still in
         progress).
         """
-        pass
 
     @abstractmethod
     def set_speed_duplex(self, bus, speed, duplex):
         """
         Disable autonegotiate and use the specified speed and duplex.
         """
-        pass

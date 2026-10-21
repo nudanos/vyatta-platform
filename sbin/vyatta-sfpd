@@ -4,21 +4,20 @@
 #
 # SPDX-License-Identifier: LGPL-2.1-only
 
-import zmq
-import select
-import logging
 import argparse
+import configparser
+import logging
+import os
+import select
 import sys
+from collections import defaultdict
+
+import zmq
 from systemd.journal import JournalHandler
 from vyatta.platform.sfpmgr import SfpStateManager
-from vyatta.phy.phy import PhyBus
-from vyatta.phy.basephy import PhyException
 from vyatta.platform.detect import PlatformError, detect
 from vyatta.platform.basesfphelper import ModuleNotPresentException
 from vyatta import configd
-import configparser
-from collections import defaultdict
-import os
 
 sfpd_presence_file = '/var/run/vyatta/sfpd-presence'
 dbg = logging.debug
@@ -42,8 +41,11 @@ eeprom_fields['QSFP']['v_part'] = {'start': 20, 'end': 36, 'format': 'utf-8'}
 eeprom_fields['QSFP']['v_rev'] = {'start': 36, 'end': 38, 'format': 'utf-8'}
 
 
-class SfpDaemon(object):
-    def __init__(self, pub_endpoint, rep_endpoint, req_endpoint, monitor_endpoint, helper_module):
+# pylint: disable-next=R0902 ; reason: daemon state
+class SfpDaemon:
+    # pylint: disable-next=R0913,R0917 ; reason: CLI endpoints
+    def __init__(self, pub_endpoint, rep_endpoint, req_endpoint,
+                 monitor_endpoint, sfp_helper_module):
         self._ctx = zmq.Context.instance()
         self._ctx.IPV6 = 1
         self._ctx.LINGER = 0
@@ -56,7 +58,8 @@ class SfpDaemon(object):
         self.rep_endpoint = rep_endpoint
         self.req_endpoint = req_endpoint
         self.monitor_endpoint = monitor_endpoint
-        self.sfphelper = helper_module.new_helper(self)
+        self.swept = False
+        self.sfphelper = sfp_helper_module.new_helper(self)
         self.sfp_presence = defaultdict(lambda: defaultdict(dict))
         self.status_fields = self.setup_status_fields()
         self.monitor_socket = self._ctx.socket(zmq.PUB)
@@ -73,22 +76,23 @@ class SfpDaemon(object):
     def get_vendor_field(self, data, porttype, fieldname):
         start = eeprom_fields[porttype][fieldname]['start']
         end = eeprom_fields[porttype][fieldname]['end']
-        format = eeprom_fields[porttype][fieldname]['format']
+        field_format = eeprom_fields[porttype][fieldname]['format']
 
-        if format == 'utf-8':
+        if field_format == 'utf-8':
             return data[start:end].decode('utf-8').rstrip()
-        elif format == 'hex':
+        if field_format == 'hex':
             return data[start:end].hex()
-        else:
-            return None
+        return None
 
     def get_vendor_data(self, porttype, port):
         start = eeprom_fields[porttype]['start']
         length = eeprom_fields[porttype]['length']
         try:
-            data = self.sfphelper.read_eeprom(porttype, port, offset=start, length=length)
+            data = self.sfphelper.read_eeprom(porttype, port, offset=start,
+                                              length=length)
         except ModuleNotPresentException:
-            err('Failed to read vendor data from EEPROM: {} {}\n'.format(porttype, port))
+            err('Failed to read vendor data from EEPROM: %s %s\n',
+                porttype, port)
             return 'Unknown', '000000', 'Unknown', 'Unknown'
 
         return self.get_vendor_field(data, porttype, 'v_name'), \
@@ -101,9 +105,10 @@ class SfpDaemon(object):
         presence_file.add_section('epoch')
         presence_file['epoch']['value'] = str(self.epoch)
         presence_file.add_section('boot_scan_end_time')
-        presence_file['boot_scan_end_time']['value'] = str(self.boot_scan_end_time)
-        for typekey, typeval in self.sfp_presence.items():
-            for portkey, portval in typeval.items():
+        presence_file['boot_scan_end_time']['value'] = \
+            str(self.boot_scan_end_time)
+        for typeval in self.sfp_presence.values():
+            for portval in typeval.values():
                 section_int = portval['port']
                 if portval['port_type'] == 'QSFP':
                     section_int = section_int + 128
@@ -117,7 +122,7 @@ class SfpDaemon(object):
                 presence_file[section]['vendor_rev'] = portval['vendor_rev']
                 presence_file[section]['detection_time'] = portval['time']
 
-        with open(sfpd_presence_file, 'w') as f:
+        with open(sfpd_presence_file, 'w', encoding='utf-8') as f:
             os.chmod(sfpd_presence_file, 0o644)
             presence_file.write(f)
 
@@ -161,7 +166,7 @@ class SfpDaemon(object):
             pinfo['epoch'] = previous_epoch
 
     def sweep_stale(self, stype, port):
-        dbg('Sweeping stale entry {} {}\n'.format(stype, port))
+        dbg('Sweeping stale entry %s %s\n', stype, port)
         del self.sfp_presence[stype][port]
         self.swept = True
 
@@ -172,21 +177,14 @@ class SfpDaemon(object):
         '''
         self.swept = False
 
-        # dict comprehension to generate stale dict from presence dict
-        stale = {
-            typekey: {
-                portkey: portval for portkey, portval in typeval.items() if portval['epoch'] < self.epoch
-            }
-            for typekey, typeval in self.sfp_presence.items()
-        }
-
-        # dict comprehension to delete stale entries from presence dict
-        temp = {
-            typekey: {
-                portkey: self.sweep_stale(typekey, portkey) for portkey, portval in typeval.items()
-            }
-            for typekey, typeval in stale.items()
-        }
+        # the stale entries, listed first: sweep_stale deletes from the
+        # presence dict
+        stale = [(typekey, portkey)
+                 for typekey, typeval in self.sfp_presence.items()
+                 for portkey, portval in typeval.items()
+                 if portval['epoch'] < self.epoch]
+        for typekey, portkey in stale:
+            self.sweep_stale(typekey, portkey)
 
         return self.swept
 
@@ -197,7 +195,7 @@ class SfpDaemon(object):
             self.restarted = False
             save = self.new_epoch_sweep() or self.mismatch
         else:
-            with open('/proc/uptime') as f:
+            with open('/proc/uptime', encoding='utf-8') as f:
                 for line in f:
                     self.boot_scan_end_time = line.split('.')[0]
 
@@ -206,8 +204,11 @@ class SfpDaemon(object):
 
         self.mismatch = False
 
-    def record_presence_change(self, portname, porttype, port, presence, has_diag):
-        print('Record presence {} for port {}\n'.format(presence, portname))
+    # pylint: disable-next=R0913,R0917,R0914 ; reason: record fields
+    def record_presence_change(self, portname, porttype, port, presence,
+                               has_diag):
+        print(f'Record presence {presence} for port {portname}\n')
+        old_pinfo = None    # the entry before this change, if any
         if port in self.sfp_presence[porttype].keys():
             exists = True
             if presence:
@@ -216,7 +217,7 @@ class SfpDaemon(object):
             exists = False
 
         if presence:
-            with open('/proc/uptime') as f:
+            with open('/proc/uptime', encoding='utf-8') as f:
                 for line in f:
                     seconds_since_boot = line.split('.')[0]
 
@@ -227,7 +228,7 @@ class SfpDaemon(object):
             pinfo['port_type'] = porttype
             pinfo['port_name'] = 'dp0' + portname
             pinfo['vendor_name'] = vname
-            pinfo['vendor_oui'] = '{}.{}.{}'.format(oui[0:2], oui[2:4], oui[4:6])
+            pinfo['vendor_oui'] = f'{oui[0:2]}.{oui[2:4]}.{oui[4:6]}'
             pinfo['vendor_part_id'] = part
             pinfo['vendor_rev'] = rev
             pinfo['epoch'] = self.epoch
@@ -247,7 +248,7 @@ class SfpDaemon(object):
                 old_pinfo['epoch'] = pinfo['epoch']
                 if pinfo != old_pinfo:
                     self.mismatch = True
-                    print('Port {} mismatch since daemon restart\n'.format(portname))
+                    print(f'Port {portname} mismatch since daemon restart\n')
                     pinfo['time'] = seconds_since_boot
             else:
                 pinfo['time'] = seconds_since_boot
@@ -258,6 +259,7 @@ class SfpDaemon(object):
         if self.boot_walk_complete_notified:
             self.write_presence_file()
 
+    # pylint: disable-next=R0913,R0917 ; reason: helper interface
     def on_sfp_presence_change(self, portname, porttype, port, presence,
                                extra_state=None):
         '''
@@ -267,15 +269,19 @@ class SfpDaemon(object):
         if not extra_state:
             extra_state = {}
             if porttype == 'SFP':
-                self.sfpmgr._sfp_eeprom_get_extra_state(port, extra_state)
+                self.sfpmgr.sfp_eeprom_get_extra_state(port, extra_state)
             elif porttype == 'QSFP':
-                self.sfpmgr._qsfp_eeprom_get_extra_state(port, extra_state)
+                self.sfpmgr.qsfp_eeprom_get_extra_state(port, extra_state)
 
         _, _, part, _ = self.get_vendor_data(porttype, port)
-        print("%s: %s %s has been %s" % ("dp0" + portname, porttype, part, "inserted" if presence else "removed"), flush=True)
-        self.sfpmgr.on_sfp_presence_change(portname, porttype, port, presence, extra_state)
+        change = "inserted" if presence else "removed"
+        print(f"dp0{portname}: {porttype} {part} has been {change}",
+              flush=True)
+        self.sfpmgr.on_sfp_presence_change(portname, porttype, port, presence,
+                                           extra_state)
         try:
-            self.record_presence_change(portname, porttype, port, presence, extra_state['has_diag'])
+            self.record_presence_change(portname, porttype, port, presence,
+                                        extra_state['has_diag'])
         except KeyError:
             # Occurs when there is no EEPROM present at the time of reading
             pass
@@ -285,10 +291,11 @@ class SfpDaemon(object):
         Called when a file event is triggered by the sfphelper's
         main_loop function
         '''
+        del event    # the REP socket is only polled for input
         if file == self.sfpmgr.get_rep_socket_fd():
             self.sfpmgr.process_rep_socket()
         else:
-            raise Exception("unexpected event for file {}".format(file))
+            raise ValueError(f"unexpected event for file {file}")
 
     def setup_status_fields(self):
         """
@@ -317,7 +324,8 @@ class SfpDaemon(object):
             return self.sfphelper.read_eeprom(porttype, port,
                                               offset=start, length=length)
         except ModuleNotPresentException:
-            err('Failed to read status data from EEPROM: {} {}\n'.format(porttype, port))
+            err('Failed to read status data from EEPROM: %s %s\n',
+                porttype, port)
         return None
 
     def check_status(self):
@@ -343,16 +351,21 @@ class SfpDaemon(object):
 
             for port in self.sfp_presence[porttype]:
                 if self.sfp_presence[porttype][port].get('has_diag', False):
-                    interface_name = self.sfp_presence[porttype][port]['port_name']
-                    status[porttype]['eeprom'][interface_name] = self.read_dev(porttype, port, offset, length)
+                    interface_name = \
+                        self.sfp_presence[porttype][port]['port_name']
+                    status[porttype]['eeprom'][interface_name] = \
+                        self.read_dev(porttype, port, offset, length)
 
         return status
 
     def update_monitoring_interval(self):
         try:
             client = configd.Client()
+        # pylint: disable-next=W0718 ; reason: keep interval
         except Exception as exc:
-            err("Cannot establish client session: '{}'".format(str(exc).strip()))
+            err("Cannot establish client session: '%s'", str(exc).strip())
+            # client is unset: carrying on raised NameError
+            return
 
         node = "system sfp monitoring interval"
         if client.node_exists(client.AUTO, node):
@@ -367,7 +380,8 @@ class SfpDaemon(object):
         if self.restarted:
             self.read_presence_file()
             self.update_monitoring_interval()
-        self.sfphelper.main_loop([(self.sfpmgr.get_rep_socket_fd(), select.POLLIN)])
+        self.sfphelper.main_loop([(self.sfpmgr.get_rep_socket_fd(),
+                                   select.POLLIN)])
 
 
 if __name__ == "__main__":
@@ -391,7 +405,7 @@ if __name__ == "__main__":
     try:
         platform = detect()
         helper_module = platform.get_sfp_helper_module()
-    except (AttributeError, PlatformError) as e:
+    except (AttributeError, PlatformError):
         pass
     if helper_module is None:
         sys.exit(0)

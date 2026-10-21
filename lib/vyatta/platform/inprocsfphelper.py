@@ -4,15 +4,13 @@
 #
 # SPDX-License-Identifier: LGPL-2.1-only
 
-import os
-import select
-import subprocess
-import zmq
 import base64
+import select
+
 from vyatta.platform.basesfphelper import BaseSfpHelper
 from vyatta.platform.basesfphelper import SfpHelperException
 from vyatta.phy.phy import PhyBus
-from vyatta.phy.basephy import PhyNotFoundException, PhyAccessException
+from vyatta.phy.basephy import PhyNotFoundException
 
 
 class InprocSfpHelper(BaseSfpHelper):
@@ -54,8 +52,8 @@ class InprocSfpHelper(BaseSfpHelper):
                     data = msg['data']
                     hex_data = int(data, 16)
                     return hex_data
-                else:
-                    raise PhyNotFoundException("read data result %s" % msg['result'])
+                raise PhyNotFoundException(
+                    f"read data result {msg['result']}")
 
         def write_word_data(self, phyaddr, reg_ctrl, data):
             """ Request the phy via the ZMQ socket to the FAL """
@@ -74,7 +72,8 @@ class InprocSfpHelper(BaseSfpHelper):
                 req_socket.send_json(phy_req)
                 msg = req_socket.recv_json(strict=False)
                 if msg['result'] != 'OK':
-                    raise PhyNotFoundException("Write data result %s" % msg['result'])
+                    raise PhyNotFoundException(
+                        f"Write data result {msg['result']}")
 
     def get_bus(self, porttype, port):
         return self.InprocSfpBus(self, porttype, port)
@@ -91,9 +90,10 @@ class InprocSfpHelper(BaseSfpHelper):
             if is_sgmii:
                 try:
                     phy.enable_sgmii(bus)
-                except Exception as e:
+                # pylint: disable-next=W0718 ; reason: keep sfpd up
+                except Exception:
                     return False
-        except PhyNotFoundException as e:
+        except PhyNotFoundException:
             return False
 
         return is_sgmii
@@ -106,7 +106,8 @@ class InprocSfpHelper(BaseSfpHelper):
         try:
             phy = PhyBus.create_phy(bus)
             phy.set_speed_duplex(bus, speed, duplex)
-        except Exception as e:
+        # pylint: disable-next=W0718 ; reason: keep sfpd up
+        except Exception:
             pass
 
     def set_phy_autoneg(self, porttype, port):
@@ -117,8 +118,11 @@ class InprocSfpHelper(BaseSfpHelper):
         try:
             phy = PhyBus.create_phy(bus)
 
-            phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True})
-        except Exception as e:
+            phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True,
+                                       '100full': True, '100half': True,
+                                       '10full': True, '10half': True})
+        # pylint: disable-next=W0718 ; reason: keep sfpd up
+        except Exception:
             pass
 
     def main_loop(self, file_evmask_tuple_list):
@@ -157,8 +161,9 @@ class InprocSfpHelper(BaseSfpHelper):
             if msg['result'] == 'OK':
                 data = base64.b64decode(msg['data'])
                 return bytes(data)
-            elif msg['result'] == 'NOSFP':
+            if msg['result'] == 'NOSFP':
                 raise SfpHelperException
+            return None
 
     def query_eeprom(self, porttype, port):
         """Get the set of pages that the spf has
@@ -172,9 +177,10 @@ class InprocSfpHelper(BaseSfpHelper):
         if porttype == 'SFP':
 
             data = self.read_eeprom(porttype, port, self.DMT_BYTE, 1)
-            if (data):
+            if data:
                 pages.append(0xa0)
-                dmt_imp = data[0] & (self.DMT_IMPL | self.DMT_ADDR_CHNG_REQ) == self.DMT_IMPL
+                dmt_imp = data[0] & (self.DMT_IMPL | self.DMT_ADDR_CHNG_REQ) \
+                    == self.DMT_IMPL
                 if dmt_imp:
                     pages.append(0xa2)
 
@@ -184,7 +190,7 @@ class InprocSfpHelper(BaseSfpHelper):
             for page in range(4):
                 pages.append(page)
         else:
-            raise Exception("unexpected port type {}".format(porttype))
+            raise ValueError(f"unexpected port type {porttype}")
         return pages
 
 

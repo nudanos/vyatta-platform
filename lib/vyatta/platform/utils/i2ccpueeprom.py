@@ -8,6 +8,7 @@ from common.logger import Logger
 from smbus import SMBus
 
 
+# pylint: disable-next=R0903 ; reason: callers use it
 class I2cCPUEEPROM:
 
     CPU_EEPROM_SIZE = 256
@@ -20,6 +21,7 @@ class I2cCPUEEPROM:
 
     # expects bus number and hex adress strings
     def dump_cpu_eeprom(self, bnum, addr):
+        bus = None
         try:
             bus = SMBus(int(bnum))
 
@@ -29,19 +31,22 @@ class I2cCPUEEPROM:
             while offset < self.CPU_EEPROM_SIZE:
                 blk_off = offset & self.CPU_EEPROM_PAGE_MASK
                 _len = self.CPU_EEPROM_SIZE - offset
-                maxlen = self.CPU_EEPROM_PAGE_SIZE - (blk_off & self.CPU_EEPROM_PAGE_MASK)
-                if _len > maxlen:
-                    _len = maxlen
+                maxlen = self.CPU_EEPROM_PAGE_SIZE - \
+                    (blk_off & self.CPU_EEPROM_PAGE_MASK)
+                _len = min(_len, maxlen)
 
-                for i in range(_len):
+                for _ in range(_len):
                     res = bus.read_byte(eeprom_addr)
                     data.append(res)
 
                 offset = offset + _len
 
             return data
-        except Exception as e:
-            self.logger.error("Dump CPU EEPROM fail, error: " + str(e))
+        except (OSError, ValueError) as e:
+            self.logger.error("Dump CPU EEPROM fail, error: %s", e)
+            return None
         finally:
-            if bus != None:
+            # None if SMBus() failed: the finally used to raise
+            # UnboundLocalError over its error
+            if bus is not None:
                 bus.close()

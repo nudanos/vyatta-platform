@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # **** End License ****
 
-from vyatta.phy.basephy import BasePhy
 import socket
+from time import sleep
+
+from vyatta.phy.basephy import BasePhy, PhyAccessException
 
 
 class Marvell88E1111Phy(BasePhy):
@@ -54,6 +56,7 @@ class Marvell88E1111Phy(BasePhy):
     STS_1000HD = 1 << 10
 
     def is_sgmii_capable(self, bus):
+        del bus    # BasePhy's signature
         return True
 
     def _phy_modify_reg(self, bus, reg, mask, value):
@@ -75,8 +78,10 @@ class Marvell88E1111Phy(BasePhy):
         # From 802.3 22.2.4.1.1: The reset process shall be completed
         # within 0.5 s from the setting of bit 0.15
         # So we shoot a bit over to 0.525s
-        for i in range(0, 600, 75):
-            if not (socket.ntohs(bus.read_word_data(self.PHYADDR, self.REG_CTRL)) & self.CTRL_RESET):
+        for _ in range(0, 600, 75):
+            ctrl = socket.ntohs(bus.read_word_data(self.PHYADDR,
+                                                   self.REG_CTRL))
+            if not ctrl & self.CTRL_RESET:
                 return
             # 75ms
             sleep(0.075)
@@ -84,13 +89,17 @@ class Marvell88E1111Phy(BasePhy):
 
     def enable_sgmii(self, bus):
         self._phy_modify_reg(bus, self.REG_EX_PHY_STATUS,
-                             self.HWCFG_MODE_MASK | self.FIBER_COPPER_AS_MASK,
-                             self.HWCFG_MODE_SGMII_NO_CLOCK | self.FIBER_COPPER_AS_DISABLE)
+                             self.HWCFG_MODE_MASK
+                             | self.FIBER_COPPER_AS_MASK,
+                             self.HWCFG_MODE_SGMII_NO_CLOCK
+                             | self.FIBER_COPPER_AS_DISABLE)
         # Commit the hardware config mode and fiber/copper
         # auto-selection changes by performing a soft reset
         self._phy_soft_reset(bus)
 
-        self.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True})
+        self.set_autoneg_caps(bus, {'1000full': True, '1000half': True,
+                                    '100full': True, '100half': True,
+                                    '10full': True, '10half': True})
 
     def set_autoneg_caps(self, bus, speeds):
         an_adv = self.ADV_PAUSE | self.ADV_ASYM_PAUSE
@@ -125,7 +134,8 @@ class Marvell88E1111Phy(BasePhy):
 
     def get_linkpartner_caps(self, bus):
         caps = {}
-        an_caps = socket.ntohs(bus.read_word_data(self.PHYADDR, self.REG_LPABIL))
+        an_caps = socket.ntohs(bus.read_word_data(self.PHYADDR,
+                                                  self.REG_LPABIL))
 
         if an_caps & self.ADV_100FD:
             caps['100full'] = True
@@ -136,7 +146,8 @@ class Marvell88E1111Phy(BasePhy):
         if an_caps & self.ADV_10HD:
             caps['10half'] = True
 
-        gbaset = socket.ntohs(bus.read_word_data(self.PHYADDR, self.REG_1000BASET_STS))
+        gbaset = socket.ntohs(bus.read_word_data(self.PHYADDR,
+                                                 self.REG_1000BASET_STS))
         if gbaset & self.STS_1000FD:
             caps['1000full'] = True
         if gbaset & self.STS_1000HD:
@@ -145,7 +156,8 @@ class Marvell88E1111Phy(BasePhy):
         return caps
 
     def get_linkstatus(self, bus):
-        phy_sts = socket.ntohs(bus.read_word_data(self.PHYADDR, self.REG_PHY_STS))
+        phy_sts = socket.ntohs(bus.read_word_data(self.PHYADDR,
+                                                  self.REG_PHY_STS))
         link_str = 'down'
         speed = 0
         duplex = 'unknown'
@@ -178,7 +190,8 @@ class Marvell88E1111Phy(BasePhy):
             pass
         else:
             ctrl_reg_val |= 0x0100
-        self._phy_modify_reg(bus, self.REG_CTRL, 0x2140 | self.CTRL_AN_ENABLE, ctrl_reg_val)
+        self._phy_modify_reg(bus, self.REG_CTRL,
+                             0x2140 | self.CTRL_AN_ENABLE, ctrl_reg_val)
 
         # Commit the auto-neg disable and forced speed changes
         self._phy_soft_reset(bus)

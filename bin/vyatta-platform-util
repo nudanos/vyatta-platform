@@ -10,95 +10,118 @@
 # Detect platform and answer queries on platform-specific behaviour
 #
 
-import logging
 import argparse
+import logging
 import sys
+
 from vyatta.platform.detect import PlatformError, detect
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
 
 
-def main(args):
-    if args.debug:
+# Each query returns the exit status
+
+def query_is_switch(_args):
+    is_switch = False
+    try:
+        is_switch = detect().is_switch()
+    except PlatformError as e:
+        LOG.debug('determining switch gave %r', e)
+    return 0 if is_switch else 1
+
+
+def query_is_hw_router_intf_supported(_args):
+    is_hw_router_intf_supported = False
+    try:
+        is_hw_router_intf_supported = \
+            detect().is_hw_router_interface_capable()
+    except PlatformError as e:
+        LOG.debug('determining HW router intf support gave %r', e)
+    return 0 if is_hw_router_intf_supported else 1
+
+
+def configure_dataplane(args):
+    try:
+        detect().configure_dataplane(args.configure_dataplane)
+    except PlatformError as e:
+        LOG.debug('configuring dataplane gave %r', e)
+    return 0
+
+
+def what_am_i(_args):
+    try:
+        print(detect().get_platform_string())
+    except PlatformError as e:
+        LOG.debug('determining switch gave %r', e)
+        print('unknown')
+    return 0
+
+
+def am_i(args):
+    try:
+        platform = detect().get_platform_string()
+    except PlatformError as e:
+        LOG.debug('determining switch gave %r', e)
+        platform = "unknown"
+    return 0 if platform == args.am_i else 1
+
+
+def format_platform_state(args):
+    try:
+        detect().format_platform_state(args.format_platform_state)
+    except PlatformError as e:
+        LOG.debug('determining platform gave %r', e)
+    return 0
+
+
+# the options in the order main checked them; they are mutually exclusive
+QUERIES = [
+    ('query_is_switch', query_is_switch),
+    ('query_is_hw_router_intf_supported', query_is_hw_router_intf_supported),
+    ('configure_dataplane', configure_dataplane),
+    ('what_am_i', what_am_i),
+    ('am_i', am_i),
+    ('format_platform_state', format_platform_state),
+]
+
+
+def main(cmd_args):
+    if cmd_args.debug:
         LOG.setLevel(logging.DEBUG)
 
-    if args.query_is_switch:
-        is_switch = False
-        try:
-            platform = detect()
-            is_switch = platform.is_switch()
-        except PlatformError as e:
-            LOG.debug('determining switch gave ' + repr(e))
-            pass
-
-        sys.exit(0 if is_switch else 1)
-
-    if args.query_is_hw_router_intf_supported:
-        is_hw_router_intf_supported = False
-        try:
-            platform = detect()
-            is_hw_router_intf_supported = platform.is_hw_router_interface_capable()
-        except PlatformError as e:
-            LOG.debug('determining HW router intf support gave ' + repr(e))
-            pass
-
-        sys.exit(0 if is_hw_router_intf_supported else 1)
-
-    if args.configure_dataplane:
-        try:
-            platform = detect()
-            platform.configure_dataplane(args.configure_dataplane)
-        except PlatformError as e:
-            LOG.debug('configuring dataplane gave ' + repr(e))
-            pass
-
-    if args.what_am_i:
-        try:
-            platform = detect()
-            print(platform.get_platform_string())
-        except PlatformError as e:
-            LOG.debug('determining switch gave ' + repr(e))
-            print('unknown')
-            pass
-
-    if args.am_i:
-        try:
-            platform = detect().get_platform_string()
-        except PlatformError as e:
-            LOG.debug('determining switch gave ' + repr(e))
-            platform = "unknown"
-
-        sys.exit(0 if platform == args.am_i else 1)
-
-    if args.format_platform_state:
-        try:
-            platform = detect()
-            platform.format_platform_state(args.format_platform_state)
-        except PlatformError as e:
-            LOG.debug('determining platform gave ' + repr(e))
-            pass
-
+    for option, query in QUERIES:
+        if getattr(cmd_args, option):
+            sys.exit(query(cmd_args))
     sys.exit(0)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--query-is-switch", action='store_true',
+                       help="Query whether the platform defaults to a "
+                       "switch. If not, then it's a router")
+    group.add_argument("--query-is-hw-router-intf-supported",
+                       action='store_true',
+                       help="Query whether the platform supports router "
+                       "interfaces in the hardware")
+    group.add_argument("--configure-dataplane", metavar='CONFFILE',
+                       help="Configure the dataplane to make use of the "
+                       "platform")
+    group.add_argument("--what-am-i", action='store_true',
+                       help="Return a string that identifies the platform")
+    group.add_argument("--am-i",
+                       help="Return 0 if I identify as the given platform, "
+                       "else return 1")
+    group.add_argument("--format-platform-state", metavar='COMMAND',
+                       help="Format state specific for a platform for "
+                       "display to a user. State is passed via stdin")
+    parser.add_argument("--debug", action='store_true',
+                        help="Turn on debugs")
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
     logging.basicConfig()
-    parser = argparse.ArgumentParser()
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--query-is-switch", action='store_true',
-                       help="Query whether the platform defaults to a switch. If not, then it's a router")
-    group.add_argument("--query-is-hw-router-intf-supported", action='store_true',
-                       help="Query whether the platform supports router interfaces in the hardware")
-    group.add_argument("--configure-dataplane", metavar='CONFFILE',
-                       help="Configure the dataplane to make use of the platform")
-    group.add_argument("--what-am-i", action='store_true',
-                       help="Return a string that identifies the platform")
-    group.add_argument("--am-i",
-                       help="Return 0 if I identify as the given platform, else return 1")
-    group.add_argument("--format-platform-state", metavar='COMMAND',
-                       help="Format state specific for a platform for display to a user. State is passed via stdin")
-    parser.add_argument("--debug", action='store_true',
-                        help="Turn on debugs")
-    args = parser.parse_args()
-    main(args)
+    main(parse_args())
