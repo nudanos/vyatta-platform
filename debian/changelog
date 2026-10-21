@@ -1,3 +1,16 @@
+vyatta-platform (2.21) trixie; urgency=medium
+
+  * Code-quality lint fixes (distro docs/porting.md): analyzer findings
+    fixed, see the git log.
+  * PHY soft reset no longer fails with NameError (sleep and
+    PhyAccessException were not imported).
+  * vyatta-sfp-util --sfp-tx-state-set false disables TX.
+  * vyatta-sfpd survives a failed configd session and a monitor trigger
+    without a callback.
+  * Unit tests, run by the build.
+
+ -- NuDanOS Maintainers <jon@fernandez.tech>  Wed, 21 Oct 2026 17:36:33 +0000
+
 vyatta-platform (2.20) trixie; urgency=medium
 
   * Port to Debian 13 (trixie): debhelper-compat 13, Standards-Version 4.7.2, Rules-Requires-Root, NuDanOS Vcs.
