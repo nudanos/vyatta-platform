@@ -29,17 +29,18 @@ info = logging.info
 # EEPROM offsets per type
 #
 eeprom_fields = defaultdict(lambda: defaultdict(dict))
-eeprom_fields['SFP'] = {'start':20, 'length':40}
-eeprom_fields['SFP']['v_name'] = {'start':0,  'end':16, 'format':'utf-8' }
-eeprom_fields['SFP']['v_oui']  = {'start':17, 'end':20, 'format':'hex' }
-eeprom_fields['SFP']['v_part'] = {'start':20, 'end':36, 'format':'utf-8' }
-eeprom_fields['SFP']['v_rev']  = {'start':36, 'end':40, 'format':'utf-8'}
+eeprom_fields['SFP'] = {'start': 20, 'length': 40}
+eeprom_fields['SFP']['v_name'] = {'start': 0, 'end': 16, 'format': 'utf-8'}
+eeprom_fields['SFP']['v_oui'] = {'start': 17, 'end': 20, 'format': 'hex'}
+eeprom_fields['SFP']['v_part'] = {'start': 20, 'end': 36, 'format': 'utf-8'}
+eeprom_fields['SFP']['v_rev'] = {'start': 36, 'end': 40, 'format': 'utf-8'}
 
-eeprom_fields['QSFP'] = {'start':148, 'length':38}
-eeprom_fields['QSFP']['v_name'] = {'start':0,  'end':16, 'format':'utf-8' }
-eeprom_fields['QSFP']['v_oui']  = {'start':17, 'end':20, 'format':'hex' }
-eeprom_fields['QSFP']['v_part'] = {'start':20, 'end':36, 'format':'utf-8' }
-eeprom_fields['QSFP']['v_rev']  = {'start':36, 'end':38, 'format':'utf-8' }
+eeprom_fields['QSFP'] = {'start': 148, 'length': 38}
+eeprom_fields['QSFP']['v_name'] = {'start': 0, 'end': 16, 'format': 'utf-8'}
+eeprom_fields['QSFP']['v_oui'] = {'start': 17, 'end': 20, 'format': 'hex'}
+eeprom_fields['QSFP']['v_part'] = {'start': 20, 'end': 36, 'format': 'utf-8'}
+eeprom_fields['QSFP']['v_rev'] = {'start': 36, 'end': 38, 'format': 'utf-8'}
+
 
 class SfpDaemon(object):
     def __init__(self, pub_endpoint, rep_endpoint, req_endpoint, monitor_endpoint, helper_module):
@@ -49,7 +50,7 @@ class SfpDaemon(object):
         self.restarted = False
         self.mismatch = False
         self.epoch = 0
-        self.boot_scan_end_time = 0;
+        self.boot_scan_end_time = 0
         self.boot_walk_complete_notified = False
         self.pub_endpoint = pub_endpoint
         self.rep_endpoint = rep_endpoint
@@ -70,8 +71,8 @@ class SfpDaemon(object):
             os.chmod(monitor_endpoint[6:], 0o770)
 
     def get_vendor_field(self, data, porttype, fieldname):
-        start  = eeprom_fields[porttype][fieldname]['start']
-        end    = eeprom_fields[porttype][fieldname]['end']
+        start = eeprom_fields[porttype][fieldname]['start']
+        end = eeprom_fields[porttype][fieldname]['end']
         format = eeprom_fields[porttype][fieldname]['format']
 
         if format == 'utf-8':
@@ -109,11 +110,11 @@ class SfpDaemon(object):
                 section = str(section_int)
                 presence_file.add_section(section)
 
-                presence_file[section]['port_name']      = portval['port_name']
-                presence_file[section]['vendor_name']    = portval['vendor_name']
-                presence_file[section]['vendor_oui']     = portval['vendor_oui']
-                presence_file[section]['part_id']        = portval['vendor_part_id']
-                presence_file[section]['vendor_rev']     = portval['vendor_rev']
+                presence_file[section]['port_name'] = portval['port_name']
+                presence_file[section]['vendor_name'] = portval['vendor_name']
+                presence_file[section]['vendor_oui'] = portval['vendor_oui']
+                presence_file[section]['part_id'] = portval['vendor_part_id']
+                presence_file[section]['vendor_rev'] = portval['vendor_rev']
                 presence_file[section]['detection_time'] = portval['time']
 
         with open(sfpd_presence_file, 'w') as f:
@@ -174,9 +175,9 @@ class SfpDaemon(object):
         # dict comprehension to generate stale dict from presence dict
         stale = {
             typekey: {
-                 portkey:portval for portkey, portval in typeval.items() if portval['epoch'] < self.epoch
+                portkey: portval for portkey, portval in typeval.items() if portval['epoch'] < self.epoch
             }
-            for typekey,typeval in self.sfp_presence.items()
+            for typekey, typeval in self.sfp_presence.items()
         }
 
         # dict comprehension to delete stale entries from presence dict
@@ -184,7 +185,7 @@ class SfpDaemon(object):
             typekey: {
                 portkey: self.sweep_stale(typekey, portkey) for portkey, portval in typeval.items()
             }
-            for typekey,typeval in stale.items()
+            for typekey, typeval in stale.items()
         }
 
         return self.swept
@@ -224,7 +225,7 @@ class SfpDaemon(object):
             pinfo = self.sfp_presence[porttype][port]
             pinfo['port'] = port
             pinfo['port_type'] = porttype
-            pinfo['port_name'] = 'dp0' +  portname
+            pinfo['port_name'] = 'dp0' + portname
             pinfo['vendor_name'] = vname
             pinfo['vendor_oui'] = '{}.{}.{}'.format(oui[0:2], oui[2:4], oui[4:6])
             pinfo['vendor_part_id'] = part
@@ -264,13 +265,13 @@ class SfpDaemon(object):
         changed
         '''
         if not extra_state:
-            extra_state={}
+            extra_state = {}
             if porttype == 'SFP':
                 self.sfpmgr._sfp_eeprom_get_extra_state(port, extra_state)
             elif porttype == 'QSFP':
                 self.sfpmgr._qsfp_eeprom_get_extra_state(port, extra_state)
 
-        _, _, part, _ = self.get_vendor_data(porttype, port);
+        _, _, part, _ = self.get_vendor_data(porttype, port)
         print("%s: %s %s has been %s" % ("dp0" + portname, porttype, part, "inserted" if presence else "removed"), flush=True)
         self.sfpmgr.on_sfp_presence_change(portname, porttype, port, presence, extra_state)
         try:
@@ -304,8 +305,8 @@ class SfpDaemon(object):
           Bytes 86 - 97: Control
         """
         status_fields = defaultdict(lambda: defaultdict(dict))
-        status_fields['SFP'] = {'start':256 + 96, 'length':22}
-        status_fields['QSFP'] = {'start':3, 'length':95}
+        status_fields['SFP'] = {'start': 256 + 96, 'length': 22}
+        status_fields['QSFP'] = {'start': 3, 'length': 95}
         return status_fields
 
     def read_dev(self, porttype, port, start, length):
@@ -367,6 +368,7 @@ class SfpDaemon(object):
             self.read_presence_file()
             self.update_monitoring_interval()
         self.sfphelper.main_loop([(self.sfpmgr.get_rep_socket_fd(), select.POLLIN)])
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='vyatta-sfpd: %(message)s')

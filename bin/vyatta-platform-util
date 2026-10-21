@@ -18,6 +18,7 @@ from vyatta.platform.detect import PlatformError, detect
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
 
+
 def main(args):
     if args.debug:
         LOG.setLevel(logging.DEBUG)
@@ -80,22 +81,23 @@ def main(args):
 
     sys.exit(0)
 
+
 if __name__ == '__main__':
     logging.basicConfig()
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--query-is-switch", action='store_true',
-                        help="Query whether the platform defaults to a switch. If not, then it's a router")
+                       help="Query whether the platform defaults to a switch. If not, then it's a router")
     group.add_argument("--query-is-hw-router-intf-supported", action='store_true',
-                        help="Query whether the platform supports router interfaces in the hardware")
+                       help="Query whether the platform supports router interfaces in the hardware")
     group.add_argument("--configure-dataplane", metavar='CONFFILE',
-                        help="Configure the dataplane to make use of the platform")
+                       help="Configure the dataplane to make use of the platform")
     group.add_argument("--what-am-i", action='store_true',
-                        help="Return a string that identifies the platform")
+                       help="Return a string that identifies the platform")
     group.add_argument("--am-i",
                        help="Return 0 if I identify as the given platform, else return 1")
     group.add_argument("--format-platform-state", metavar='COMMAND',
-                        help="Format state specific for a platform for display to a user. State is passed via stdin")
+                       help="Format state specific for a platform for display to a user. State is passed via stdin")
     parser.add_argument("--debug", action='store_true',
                         help="Turn on debugs")
     args = parser.parse_args()

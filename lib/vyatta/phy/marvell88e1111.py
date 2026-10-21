@@ -7,6 +7,7 @@
 from vyatta.phy.basephy import BasePhy
 import socket
 
+
 class Marvell88E1111Phy(BasePhy):
     '''
     Driver for Marvell 88E1111 PHY
@@ -15,7 +16,7 @@ class Marvell88E1111Phy(BasePhy):
     '''
     PHYID = 0x01410cc0
     PHYMASK = 0xfffffff0
-    PHYADDR = 0x56 # 0xAC >> 1
+    PHYADDR = 0x56  # 0xAC >> 1
 
     REG_CTRL = 0x00
     REG_1000BASET_CTRL = 0x09
@@ -89,7 +90,7 @@ class Marvell88E1111Phy(BasePhy):
         # auto-selection changes by performing a soft reset
         self._phy_soft_reset(bus)
 
-        self.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True })
+        self.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True})
 
     def set_autoneg_caps(self, bus, speeds):
         an_adv = self.ADV_PAUSE | self.ADV_ASYM_PAUSE

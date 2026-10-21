@@ -14,6 +14,7 @@ from vyatta.platform.basesfphelper import SfpHelperException
 from vyatta.phy.phy import PhyBus
 from vyatta.phy.basephy import PhyNotFoundException, PhyAccessException
 
+
 class InprocSfpHelper(BaseSfpHelper):
     """Implement the SFP helper for the platforms that use the Inproc i2x bus
 
@@ -23,6 +24,7 @@ class InprocSfpHelper(BaseSfpHelper):
     APIs.
 
     """
+
     def __init__(self, sfpd):
         self.sfpd = sfpd
 
@@ -45,7 +47,7 @@ class InprocSfpHelper(BaseSfpHelper):
                 phy_req['addr'] = phyaddr
                 phy_req['regctrl'] = reg_ctrl
 
-                req_socket.send_json(phy_req);
+                req_socket.send_json(phy_req)
                 msg = req_socket.recv_json(strict=False)
 
                 if msg['result'] == 'OK':
@@ -69,7 +71,7 @@ class InprocSfpHelper(BaseSfpHelper):
                 phy_req['regctrl'] = reg_ctrl
                 phy_req['regdata'] = data
 
-                req_socket.send_json(phy_req);
+                req_socket.send_json(phy_req)
                 msg = req_socket.recv_json(strict=False)
                 if msg['result'] != 'OK':
                     raise PhyNotFoundException("Write data result %s" % msg['result'])
@@ -115,7 +117,7 @@ class InprocSfpHelper(BaseSfpHelper):
         try:
             phy = PhyBus.create_phy(bus)
 
-            phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True })
+            phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True})
         except Exception as e:
             pass
 
@@ -149,7 +151,7 @@ class InprocSfpHelper(BaseSfpHelper):
             else:
                 eeprom_req['length'] = 0
 
-            req_socket.send_json(eeprom_req);
+            req_socket.send_json(eeprom_req)
             msg = req_socket.recv_json(strict=False)
 
             if msg['result'] == 'OK':
@@ -172,18 +174,19 @@ class InprocSfpHelper(BaseSfpHelper):
             data = self.read_eeprom(porttype, port, self.DMT_BYTE, 1)
             if (data):
                 pages.append(0xa0)
-                dmt_imp = data[0] & (self.DMT_IMPL|self.DMT_ADDR_CHNG_REQ) == self.DMT_IMPL
+                dmt_imp = data[0] & (self.DMT_IMPL | self.DMT_ADDR_CHNG_REQ) == self.DMT_IMPL
                 if dmt_imp:
                     pages.append(0xa2)
 
             else:
-                    raise SfpHelperException
+                raise SfpHelperException
         elif porttype == 'QSFP':
             for page in range(4):
                 pages.append(page)
         else:
             raise Exception("unexpected port type {}".format(porttype))
         return pages
+
 
 def new_helper(sfpd):
     return InprocSfpHelper(sfpd)

@@ -7,6 +7,7 @@
 from common.logger import Logger
 from smbus import SMBus
 
+
 class I2cCPUEEPROM:
 
     CPU_EEPROM_SIZE = 256

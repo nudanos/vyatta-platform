@@ -11,6 +11,7 @@ import errno
 from vyatta.phy.marvell88e1111 import Marvell88E1111Phy
 from vyatta.phy.basephy import PhyNotFoundException, PhyAccessException
 
+
 class PhyType(object):
     def __init__(self, phyclass):
         self.phyid = phyclass.PHYID
@@ -19,6 +20,7 @@ class PhyType(object):
 
     def __eq__(self, other):
         return other & self.mask == self.phyid
+
 
 class PhyBus:
 
@@ -40,7 +42,6 @@ class PhyBus:
 
         raise PhyNotFoundException("unsupported phy with id 0x%x" % (phyid))
 
-
     @classmethod
     def create_phy(cls, bus):
         try:
@@ -57,6 +58,8 @@ class PhyBus:
         return cls.get_phy_type(phyid)
 
 # Standalone test
+
+
 def main():
     if len(sys.argv) != 2:
         print("\nUsage: " + sys.argv[0] + " <I2Cbus#>")
@@ -74,6 +77,7 @@ def main():
         if link == 'up':
             break
         time.sleep(1)
+
 
 if __name__ == "__main__":
     main()

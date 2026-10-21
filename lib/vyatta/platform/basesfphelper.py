@@ -7,16 +7,20 @@ import time
 from vyatta.phy.phy import PhyBus
 from vyatta.phy.basephy import PhyException
 
+
 class SfpHelperException(Exception):
     pass
+
 
 class BusNotSupportedException(SfpHelperException):
     def __init__(self, arg):
         self.arg = arg
 
+
 class ModuleNotPresentException(SfpHelperException):
     def __init__(self, arg):
         self.arg = arg
+
 
 class BaseSfpHelper(ABC):
     """
@@ -37,7 +41,7 @@ class BaseSfpHelper(ABC):
     # minimum granularity offered by the scheduler is in the order of
     # 75 msec and this also gives a bit of a margin.
     PHY_PROBE_TRIES = 1
-    PHY_PROBE_RETRY_TIME = 0.075 # 75 msec
+    PHY_PROBE_RETRY_TIME = 0.075  # 75 msec
 
     @abstractmethod
     def get_bus(self, porttype, port):
@@ -160,7 +164,7 @@ class BaseSfpHelper(ABC):
                 try:
                     phy = PhyBus.create_phy(bus)
 
-                    phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True })
+                    phy.set_autoneg_caps(bus, {'1000full': True, '1000half': True, '100full': True, '100half': True, '10full': True, '10half': True})
                 except PhyException as e:
                     pass
         except SfpHelperException as e:

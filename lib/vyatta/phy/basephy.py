@@ -6,16 +6,20 @@
 
 from abc import ABC, abstractmethod
 
+
 class PhyException(Exception):
     pass
+
 
 class PhyNotFoundException(PhyException):
     def __init__(self, arg):
         self.arg = arg
 
+
 class PhyAccessException(PhyException):
     def __init__(self, arg):
         self.arg = arg
+
 
 class BasePhy(ABC):
     @abstractmethod

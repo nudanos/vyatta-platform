@@ -12,8 +12,10 @@ import importlib
 
 LOG = logging.getLogger('vyatta.platform.detect')
 
+
 class PlatformError(Exception):
     pass
+
 
 class DefaultPlatform(object):
     def is_switch(self):
@@ -46,6 +48,7 @@ class DefaultPlatform(object):
     def __str__(self):
         return self.get_platform_string()
 
+
 def gen_platform_type_modules():
     """
     Generator for found platform type modules (i.e. starting with
@@ -57,11 +60,12 @@ def gen_platform_type_modules():
             continue
         for entry in os.scandir(type_mod_path):
             if (entry.name.endswith('.py') or
-                entry.name.endswith('.pyc')) and entry.is_file():
+                    entry.name.endswith('.pyc')) and entry.is_file():
                 # Strip off extension and prefix with vyatta.platform.type
                 type_mod_name = '.'.join(['vyatta', 'platform', 'type',
                                           entry.name.rpartition('.')[0]])
                 yield type_mod_name
+
 
 def detect():
     """ Detect platform and return the platform object """
@@ -94,4 +98,3 @@ def detect():
         return platform
 
     raise PlatformError('no platform detected')
-

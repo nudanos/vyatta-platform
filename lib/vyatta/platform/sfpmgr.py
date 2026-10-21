@@ -17,6 +17,7 @@ from threading import Event, Thread
 dbg = logging.debug
 info = logging.info
 
+
 class SfpState:
     def __init__(self, porttype, port, extra_state):
         if extra_state:
@@ -25,6 +26,7 @@ class SfpState:
             self.state = {}
         self.state['type'] = porttype
         self.state['port'] = port
+
 
 class SFPMonitorTimer(Thread):
     def __init__(self, mgr):
@@ -42,7 +44,7 @@ class SFPMonitorTimer(Thread):
         not None.
         '''
         while not self.stopped.wait(self.status_interval):
-            self.req_socket.send_json({ 'command': 'SFPMONITORTRIGGER'})
+            self.req_socket.send_json({'command': 'SFPMONITORTRIGGER'})
             msg = self.req_socket.recv_json(strict=False)
 
             if msg['result'] != 'OK':
@@ -63,6 +65,7 @@ class SFPMonitorTimer(Thread):
         dbg("Stopping SFPMonitorTimer thread")
         self.stopped.set()
 
+
 class SfpStateManager(object):
     '''
     SFP State Manager
@@ -71,6 +74,7 @@ class SfpStateManager(object):
     changes via ZMQ, and allows those parties to also enact changes to
     the state of SFPs.
     '''
+
     def __init__(self, pub_endpoint, rep_endpoint, req_endpoint, sfphelper, monitor_socket, sfpd_monitor=None):
         self._ctx = zmq.Context.instance()
         self._ctx.IPV6 = 1
@@ -102,13 +106,14 @@ class SfpStateManager(object):
         '''
         Performs a deep merge of dictionary b into a
         '''
-        if path is None: path = []
+        if path is None:
+            path = []
         for key in b:
             if key in a:
                 if isinstance(a[key], dict) and isinstance(b[key], dict):
                     self._dict_merge(a[key], b[key], path + [str(key)])
                 elif a[key] == b[key]:
-                    pass # same leaf value
+                    pass  # same leaf value
                 else:
                     raise Exception(
                         'Conflict at %s' % '.'.join(path + [str(key)]))
@@ -166,9 +171,9 @@ class SfpStateManager(object):
             if eth_1040100g & 0x80:
                 sfp_state['eeprom_eth_extended_comp'] = eth_extended_comp
 
-            if content[147] & 0x0F < 0xA: # Fibre QSFP
+            if content[147] & 0x0F < 0xA:  # Fibre QSFP
                 sfp_state['has_diag'] = True
-            else: # Copper QSFP
+            else:  # Copper QSFP
                 sfp_state['has_diag'] = False
         except SfpHelperException:
             # Module was removed in between notification it was
@@ -182,13 +187,13 @@ class SfpStateManager(object):
         if 'eeprom_eth_compat' in sfp_state and \
            (sfp_state['eeprom_eth_compat'] & 0x08 or
             sfp_state['eeprom_eth_compat'] & 0x10 or
-            sfp_state['eeprom_eth_compat'] & 0x20):
+                sfp_state['eeprom_eth_compat'] & 0x20):
             return True
         # 10GBASE-T or 5GBASE-T or 2.5GBASE-T
         if 'eeprom_eth_extended_comp' in sfp_state and \
            (sfp_state['eeprom_eth_extended_comp'] == 0x1c or
             sfp_state['eeprom_eth_extended_comp'] == 0x1d or
-            sfp_state['eeprom_eth_extended_comp'] == 0x1e):
+                sfp_state['eeprom_eth_extended_comp'] == 0x1e):
             return True
         return False
 
@@ -260,7 +265,7 @@ class SfpStateManager(object):
         duplex = json['duplex']
         portname = json['portname']
         if not portname in self.sfp_state:
-            self.rep_socket.send_json({ 'result': 'SFP not present'})
+            self.rep_socket.send_json({'result': 'SFP not present'})
             return
 
         sfp_state = self.sfp_state[portname]
@@ -268,12 +273,12 @@ class SfpStateManager(object):
         port = sfp_state.state['port']
 
         self.sfphelper.set_phy_speed_duplex(porttype, port, speed, duplex)
-        self.rep_socket.send_json({ 'result': 'OK' })
+        self.rep_socket.send_json({'result': 'OK'})
 
     def _process_phyautonegset_command(self, json):
         portname = json['portname']
         if not portname in self.sfp_state:
-            self.rep_socket.send_json({ 'result': 'SFP not present'})
+            self.rep_socket.send_json({'result': 'SFP not present'})
             return
 
         sfp_state = self.sfp_state[portname]
@@ -281,7 +286,7 @@ class SfpStateManager(object):
         port = sfp_state.state['port']
 
         self.sfphelper.set_phy_autoneg(porttype, port)
-        self.rep_socket.send_json({ 'result': 'OK' })
+        self.rep_socket.send_json({'result': 'OK'})
 
     def _process_sfpstateset_command(self, json):
         portname = json['portname']
@@ -295,7 +300,7 @@ class SfpStateManager(object):
             # module is inserted, since this is needed for vyatta-sfpd
             # restart support anyway.
             pass
-        self.rep_socket.send_json({ 'result': 'OK' })
+        self.rep_socket.send_json({'result': 'OK'})
 
     def _process_sfpreadeeprom_command(self, json):
         portname = json['portname']
@@ -307,7 +312,7 @@ class SfpStateManager(object):
             length = int(json['length'])
 
         if not portname in self.sfp_state:
-            self.rep_socket.send_json({ 'result': 'SFP not present'})
+            self.rep_socket.send_json({'result': 'SFP not present'})
             return
 
         sfp_state = self.sfp_state[portname]
@@ -315,13 +320,13 @@ class SfpStateManager(object):
         port = sfp_state.state['port']
 
         data = self.sfphelper.read_eeprom(porttype, port, offset, length)
-        self.rep_socket.send_json({ 'result': 'OK',
-                                    'data': base64.b64encode(data).decode() })
+        self.rep_socket.send_json({'result': 'OK',
+                                   'data': base64.b64encode(data).decode()})
 
     def _process_sfpqueryeeprom_command(self, json):
         portname = json['portname']
         if not portname in self.sfp_state:
-            self.rep_socket.send_json({ 'result': 'SFP not present'})
+            self.rep_socket.send_json({'result': 'SFP not present'})
             return
 
         sfp_state = self.sfp_state[portname]
@@ -329,9 +334,9 @@ class SfpStateManager(object):
         port = sfp_state.state['port']
 
         pages = self.sfphelper.query_eeprom(porttype, port)
-        self.rep_socket.send_json({ 'result': 'OK',
-                                    'porttype': porttype,
-                                    'pages': pages })
+        self.rep_socket.send_json({'result': 'OK',
+                                   'porttype': porttype,
+                                   'pages': pages})
 
     def _process_sfpinsertedremoved_command(self, json):
         """ Process the message that says an sfp has been plugged/unplugged
@@ -357,7 +362,7 @@ class SfpStateManager(object):
         # action here, which is sufficient for testing purposes
         self.sfphelper.process_sfpinsertedremoved(
             portname, porttype, int(portid), inserted, extra_state)
-        self.rep_socket.send_json({ 'result': 'OK' })
+        self.rep_socket.send_json({'result': 'OK'})
 
     def build_monitor_msg(self, data):
         '''
@@ -383,7 +388,7 @@ class SfpStateManager(object):
         '''
         Retrieves data from SFP EEPROMs and sends to dataplane.
         '''
-        self.rep_socket.send_json({ 'result': 'OK' })
+        self.rep_socket.send_json({'result': 'OK'})
         if self.sfpd_monitor_callback is not None:
             data = self.sfpd_monitor_callback()
 
@@ -412,7 +417,7 @@ class SfpStateManager(object):
         '''
         interval = json['value']
         self.update_monitoring_interval(interval)
-        self.rep_socket.send_json({ 'result': 'OK' })
+        self.rep_socket.send_json({'result': 'OK'})
 
     def process_rep_socket(self):
         '''
@@ -423,7 +428,7 @@ class SfpStateManager(object):
             try:
                 json = self.rep_socket.recv_json()
                 if json is None or not "command" in json:
-                    self.rep_socket.send_json({ 'result': 'bad command' })
+                    self.rep_socket.send_json({'result': 'bad command'})
                     continue
                 command = json["command"]
                 if command == 'REPLAY':
@@ -448,11 +453,11 @@ class SfpStateManager(object):
                     self._sfp_monitor_timer_handler()
                 else:
                     self.rep_socket.send_json(
-                        { 'result': 'unrecognised command {}'.format(command) })
+                        {'result': 'unrecognised command {}'.format(command)})
                     continue
                 eventProcessed = True
             except Exception as e:
-                self.rep_socket.send_json({ 'result': str(e) })
+                self.rep_socket.send_json({'result': str(e)})
         return eventProcessed
 
     def get_rep_socket_fd(self):
@@ -479,6 +484,7 @@ class SfpStateManager(object):
         '''
         return self._rep_endpoint
 
+
 def main():
     '''
     Standalone test for the class
@@ -502,64 +508,65 @@ def main():
 
     # Test REPLAY command with empty state
 
-    replay_req_json = { 'command': 'REPLAY' }
+    replay_req_json = {'command': 'REPLAY'}
     req_sock.send_json(replay_req_json)
 
     while not sfpmgr.process_rep_socket():
         p.poll()
 
     replay_rep_json = req_sock.recv_json()
-    assert('ports' not in replay_rep_json)
+    assert ('ports' not in replay_rep_json)
 
     # Test insert of two ports
 
     sfpmgr.on_sfp_presence_change('xe17', 'SFP', 17, True)
     # Receive message, strip out topic string and convert to JSON
     pub_json = json.loads(sub_sock.recv_string().split(' ', maxsplit=1)[1])
-    assert(len(pub_json['ports'].keys()) == 1)
-    assert(pub_json['ports']['xe17']['present'] == True)
+    assert (len(pub_json['ports'].keys()) == 1)
+    assert (pub_json['ports']['xe17']['present'] == True)
     sfpmgr.on_sfp_presence_change('xe19', 'SFP', 19, True)
     # Receive message, strip out topic string and convert to JSON
     pub_json = json.loads(sub_sock.recv_string().split(' ', maxsplit=1)[1])
-    assert(len(pub_json['ports'].keys()) == 1)
-    assert(pub_json['ports']['xe19']['present'] == True)
+    assert (len(pub_json['ports'].keys()) == 1)
+    assert (pub_json['ports']['xe19']['present'] == True)
 
     # Test REPLAY command with non-empty state
 
-    replay_req_json = { 'command': 'REPLAY' }
+    replay_req_json = {'command': 'REPLAY'}
     req_sock.send_json(replay_req_json)
 
     while not sfpmgr.process_rep_socket():
         p.poll()
 
     replay_rep_json = req_sock.recv_json()
-    assert(len(replay_rep_json['ports'].keys()) == 2)
-    assert(replay_rep_json['ports']['xe17']['present'] == True)
-    assert(replay_rep_json['ports']['xe19']['present'] == True)
+    assert (len(replay_rep_json['ports'].keys()) == 2)
+    assert (replay_rep_json['ports']['xe17']['present'] == True)
+    assert (replay_rep_json['ports']['xe19']['present'] == True)
 
     # Test remove of two ports
 
     sfpmgr.on_sfp_presence_change('xe17', 'SFP', 17, False)
     # Receive message, strip out topic string and convert to JSON
     pub_json = json.loads(sub_sock.recv_string().split(' ', maxsplit=1)[1])
-    assert(len(pub_json['ports'].keys()) == 1)
-    assert(pub_json['ports']['xe17']['present'] == False)
+    assert (len(pub_json['ports'].keys()) == 1)
+    assert (pub_json['ports']['xe17']['present'] == False)
     sfpmgr.on_sfp_presence_change('xe19', 'SFP', 19, False)
     # Receive message, strip out topic string and convert to JSON
     pub_json = json.loads(sub_sock.recv_string().split(' ', maxsplit=1)[1])
-    assert(len(pub_json['ports'].keys()) == 1)
-    assert(pub_json['ports']['xe19']['present'] == False)
+    assert (len(pub_json['ports'].keys()) == 1)
+    assert (pub_json['ports']['xe19']['present'] == False)
 
     # Test REPLAY command back to empty state
 
-    replay_req_json = { 'command': 'REPLAY' }
+    replay_req_json = {'command': 'REPLAY'}
     req_sock.send_json(replay_req_json)
 
     while not sfpmgr.process_rep_socket():
         p.poll()
 
     replay_rep_json = req_sock.recv_json()
-    assert('ports' not in replay_rep_json)
+    assert ('ports' not in replay_rep_json)
+
 
 if __name__ == "__main__":
     main()

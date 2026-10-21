@@ -16,6 +16,7 @@ import argparse
 import sys
 import base64
 
+
 def main(parser, args):
     REQ_ENDPOINT = "ipc:///var/run/vyatta/sfp_rep.socket"
 
@@ -142,6 +143,7 @@ def main(parser, args):
     parser.print_help()
     sys.exit(1)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
@@ -149,21 +151,21 @@ if __name__ == '__main__':
                        type=bool,
                        help="Set the TX state of the SFP")
     group.add_argument("--phy-link-status", action='store_true',
-                        help="Get the link status of any embedded PHY on the SFP")
+                       help="Get the link status of any embedded PHY on the SFP")
     group.add_argument("--phy-speed-duplex-set", nargs=2,
-                        help="Force speed and duplex of embedded PHY on the SFP")
+                       help="Force speed and duplex of embedded PHY on the SFP")
     group.add_argument("--phy-autoneg-set", action='store_true',
-                        help="Set autoneg of embedded PHY on the SFP")
+                       help="Set autoneg of embedded PHY on the SFP")
     group.add_argument("--replay", action='store_true',
-                        help="Perform a replay of state for publishing")
+                       help="Perform a replay of state for publishing")
     group.add_argument("--read-eeprom", action='store_true',
-                        help="Read entire EEPROM")
+                       help="Read entire EEPROM")
     group.add_argument("--read-eeprom-offset", nargs=2,
-                        help="Read EEPROM from given offset upto given length")
+                       help="Read EEPROM from given offset upto given length")
     group.add_argument("--query-eeprom", action='store_true',
-                        help="Query EEPROM supported pages and type")
+                       help="Query EEPROM supported pages and type")
     group.add_argument("--sfp-insert-remove", nargs=4,
-                        help="Trigger presence change for port - <PORTNUM> <PORTTYPE> <PRESENCE> <EXTRA_STATE>")
+                       help="Trigger presence change for port - <PORTNUM> <PORTTYPE> <PRESENCE> <EXTRA_STATE>")
     parser.add_argument("--port", action='store',
                         help="Port to act upon")
     args = parser.parse_args()

@@ -6,6 +6,7 @@
 
 import sys
 
+
 class ONIETLVInfo:
     # See https://opencomputeproject.github.io/onie/design-spec/hw_requirements.html
 
@@ -41,7 +42,7 @@ class ONIETLVInfo:
         return int(data[start] << 8 | data[start + 1])
 
     def decode(self, eeprom_data):
-        header  = self.decode_variable(eeprom_data, 0, 7)
+        header = self.decode_variable(eeprom_data, 0, 7)
         if header != self.TLVINFO_HEADER:
             raise ValueError('The CPU EEPROM is corrupted or empty.')
 
@@ -69,7 +70,7 @@ class ONIETLVInfo:
                 decoded_data['serial_number'] = self.decode_variable(eeprom_data, tlv_start, tlv_len)
 
             elif tlv_type == self.TLVINFO_MAC_1_BASE:
-                base_mac  = ':'.join('{:02x}'.format(eeprom_data[b]) for b in range(tlv_start, tlv_start + tlv_len))
+                base_mac = ':'.join('{:02x}'.format(eeprom_data[b]) for b in range(tlv_start, tlv_start + tlv_len))
                 decoded_data['base_mac'] = '{}'.format(base_mac)
 
             elif tlv_type == self.TLVINFO_MANUFACTURE_DATE:
